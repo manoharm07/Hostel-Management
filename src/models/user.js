@@ -1,10 +1,12 @@
 const { Sequelize, DataTypes, Model } = require('sequelize');
-const sequelize = new Sequelize('database', 'root', 'Map)0989', {
+
+const sequelize = new Sequelize('hostel_management', 'root', 'Map)0989', {
     host: 'localhost',
     dialect: 'mysql'
 });
 
-class User extends Model {}
+class User extends Model { }
+
 User.init({
     user_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     user_name: { type: DataTypes.STRING, allowNull: false },
@@ -13,73 +15,33 @@ User.init({
     address: { type: DataTypes.STRING },
     role: { type: DataTypes.STRING },
     phone: { type: DataTypes.STRING }
-}, { sequelize, modelName:'user'});
+}, {
+    sequelize,
+    modelName: 'user',
+    tableName: 'user',  // 👈 Explicitly define the table name to avoid pluralization
+    timestamps: false  // 👈 This will add createdAt & updatedAt automatically
+});
 
-class Student extends Model {}
-Student.init({
-    user_id: { type: DataTypes.INTEGER, primaryKey: true, references: { model: User, key: 'user_id' } },
-    room_id: { type: DataTypes.INTEGER }
-}, { sequelize, modelName: 'student' });
 
-class Staff extends Model {}
-Staff.init({
-    user_id: { type: DataTypes.INTEGER, primaryKey: true, references: { model: User, key: 'user_id' } },
-    position: { type: DataTypes.STRING }
-}, { sequelize, modelName: 'staff' });
+async function initialize() {
+    try {
+        // Sync model with database (ensure table is created)
+        await sequelize.sync({ force: true }); // ⚠️ WARNING: This deletes existing data
+        console.log("User table created successfully!");
 
-class FeePayment extends Model {}
-FeePayment.init({
-    transaction_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    hostel_id: { type: DataTypes.INTEGER },
-    student_id: { type: DataTypes.INTEGER, references: { model: Student, key: 'user_id' } },
-    current_year: { type: DataTypes.INTEGER },
-    amount: { type: DataTypes.FLOAT }
-}, { sequelize, modelName: 'fee_payment' });
+        // Insert User after the table is created
+        await sequelize.query(`
+            INSERT INTO user (user_name, email, password, address, role, phone)
+            VALUES ('John Doe', 'john@example.com', 'securepassword', '123 Street', 'student', '9876543210');
+        `);
+        console.log("User added successfully!");
 
-class Application extends Model {}
-Application.init({
-    student_id: { type: DataTypes.INTEGER, references: { model: Student, key: 'user_id' } },
-    hostel_id: { type: DataTypes.INTEGER },
-    status: { type: DataTypes.STRING }
-}, { sequelize, modelName: 'application' });
+    } catch (err) {
+        console.error("Error:", err);
+    }
+}
 
-class Room extends Model {}
-Room.init({
-    room_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    hostel_id: { type: DataTypes.INTEGER },
-    room_no: { type: DataTypes.STRING },
-    floor_no: { type: DataTypes.INTEGER },
-    empty_seats: { type: DataTypes.INTEGER },
-    total_seats: { type: DataTypes.INTEGER }
-}, { sequelize, modelName: 'room' });
+// Call the function to initialize DB and insert data
+initialize();
 
-class Food extends Model {}
-Food.init({
-    hostel_id: { type: DataTypes.INTEGER, primaryKey: true },
-    student_count: { type: DataTypes.INTEGER }
-}, { sequelize, modelName: 'food' });
-
-class Hostel extends Model {}
-Hostel.init({
-    hostel_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    address: { type: DataTypes.STRING },
-    phone: { type: DataTypes.STRING },
-    capacity: { type: DataTypes.INTEGER },
-    empty: { type: DataTypes.INTEGER }
-}, { sequelize, modelName: 'hostel' });
-
-// Defining relationships
-User.hasOne(Student, { foreignKey: 'user_id' });
-User.hasOne(Staff, { foreignKey: 'user_id' });
-Student.belongsTo(User, { foreignKey: 'user_id' });
-Staff.belongsTo(User, { foreignKey: 'user_id' });
-Hostel.hasMany(Room, { foreignKey: 'hostel_id' });
-Room.belongsTo(Hostel, { foreignKey: 'hostel_id' });
-Student.belongsTo(Room, { foreignKey: 'room_id' });
-Application.belongsTo(Student, { foreignKey: 'student_id' });
-Application.belongsTo(Hostel, { foreignKey: 'hostel_id' });
-FeePayment.belongsTo(Student, { foreignKey: 'student_id' });
-FeePayment.belongsTo(Hostel, { foreignKey: 'hostel_id' });
-Hostel.hasOne(Food, { foreignKey: 'hostel_id' });
-
-module.exports = { User, Student, Staff, FeePayment, Application, Room, Food, Hostel, sequelize };
+module.exports = User;
